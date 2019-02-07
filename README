@@ -1,0 +1,101 @@
+# Habenula fMRI ROIs
+Generates subject-level habenula (Hb) region of interest (ROI) masks for use in fMRI studies. Hb ROIs are generated at functional resolution (e.g. 2mm isotropic) based on an input Hb segmentation at anatomical resolution (e.g. 0.7mm isotropic). Optionally, output Hb ROIs can be warped to a desired template space (e.g. MNI).
+
+---
+## Requirements
+* FSL version 5.0.6 or later
+* Unix OS (Mac OSX or Linux)
+
+---
+## Input Files
+* Left Hb segmentation at anatomical resolution in native subject space
+* Right Hb segmentation at anatomical resolution in native subject space
+	* We recommend automated probabilistic Hb segmentation if T1w and T2w anatomical data are available (Kim JW et al. 2016 NeuroImage; https://github.com/junqianxulab/habenula_segmentation)
+	* Should also work for manually-defined binary Hb masks (e.g. Lawson RP et al. 2013 NeuroImage)
+* Example file at the target functional resolution and XYZ dimensions (i.e. NIFTI header parameters match desired output)
+* (Optional) FNIRT-compatible relative warpfield for transforming from template to native space 
+	* If using HCP pipelines, located in '${subject_directory}/MNINonLinear/xfms/standard2acpc_dc.nii.gz'
+
+Note that input files should be in standard NIFTI1 format (.nii or .nii.gz). Intensity values for the segmented Hb should range from 0-1 if probabilistic or equal 1 if binary.
+
+---
+## Outputs
+* Thresholded (25th percentile) and binarized bilateral Hb ROI, recommended for use in fMRI studies (Ely BA et al. in prep)
+	* ${subject_ID}_bilat_Hb_region_ROI_thr0.25_bin.nii.gz
+* Probabilistic left, right, and bilateral Hb ROIs at target functional resolution (and in template space if warpfield supplied)
+	* ${subject_ID}_left_Hb_region_full_prob.nii.gz
+	* ${subject_ID}_right_Hb_region_full_prob.nii.gz
+	* ${subject_ID}_bilat_Hb_region_full_prob.nii.gz
+* Working directory containing various intermediate files, can be deleted after ROI generation
+	* ${subject_ID}_Hb_ROI_workdir/
+
+---
+## How to Run
+
+### From the unix terminal:
+```
+Habenula_fMRI_ROIs.sh --sub=subject_ID --segL=segmented_Hb_left.nii.gz --segR=segmented_Hb_right.nii.gz --func=example_functional.nii.gz --odir=output_directory [--warp=warpfield.nii.gz] 
+```
+
+#### Options
+```
+Habenula_fMRI_ROIs.sh
+	--sub  = subject ID
+	--segL = left Hb segmentation file
+	--segR = right Hb segmentation file
+	--func = example functional image file
+	--odir = path to output directory
+       [--warp = optional warpfield, if included Hb ROI position will be transformed accordingly]
+```
+
+---
+# Depricated Methods
+Alternative methods for creating Hb fMRI ROIs described in (Ely BA et al. in prep) but found to have lower sensitivity to Hb BOLD signals than the method above. Provided for completeness only; not recommended. Note that these scripts use input Hb segmentations created in MNI template space rather than native subject space (also not recommended) and are configured to run in an LSF-based cluster computing environment.
+
+## 1: Unoptimized Hb ROIs
+Basic nearest-neighbor downsampling of binary Hb segmentation to functional resolution.
+```
+par_MNI_unopt_Hb_3T.sh
+```
+
+## 2: Volume Optimized Hb ROIs
+Conservatively defined to match the estimated volume of the segmented Hb, as described in (Ely BA et al. 2016 Human Brain Mapping).
+```
+par_MNI_volopt_Hb_3T.sh
+```
+
+## 3: Hb Region ROIs
+Liberally defined to include all voxels with coordinates that overlap with the segmented Hb (after some heuristic thresholding). Early version of our primary, recommended method.
+```
+par_MNI_region_Hb_3T.sh
+```
+
+## 4: Mean Timeseries Optimized Hb ROIs
+Includes voxels most strongly correlated with the mean timeseries of the bilateral Hb Region ROI. Volume matched to the segmented Hb, as in method 2. Requires Matlab + NifTI_tools package.
+```
+par_MNI_extract_voxelTS_BP_CC_FIX.sh # extract voxelwise and mean timeseries values from denoised rs-fMRI data within bilateral Hb Region ROI
+MNI_biopt_BP_CC_FIX.m # assign weight to each voxel based on correlation with the mean timeseries
+correct_matlab_headers.sh # copy correct header information from an example functional file (minor bugfix)
+```
+
+## 5: Pairwise Timeseries Optimized Hb ROIs
+Includes voxels with strongest pairwise correlations within the Hb Region ROI. Volume matched to the segmented Hb, as in method 2. Requires Matlab + NifTI_tools package.
+```
+par_MNI_extract_voxelTS_BP_CC_FIX.sh # extract voxelwise and mean timeseries values from denoised rs-fMRI data within bilateral Hb Region ROI
+MNI_Pairopt_BP_CC_FIX.m # calculate timeseries correlation of each voxel with each other voxel and assign weight based on strongest correlation
+correct_matlab_headers.sh # copy correct header information from an example functional file (minor bugfix)
+```
+
+## 6: Hb Template ROI
+Generic ROI created by averaging Hb segmentations from 68 HCP subjects then downsampling to functional resolution, with volume matched to the averaged segmented Hb volume.
+```
+MNI_template_Hb_3T.nii.gz
+```
+
+---
+# References:
+
+Ely BA et al. 'Resting-state functional connectivity of the human habenula in healthy individuals: associations with subclinical depression', Human Brain Mapping 2016 37:2369-84, https://www.ncbi.nlm.nih.gov/pubmed/26991474 
+Ely BA et al. 'Human habenula functional connectivity with monoamine, sensory, and salience systems', in prep
+Kim JW et al. 'Human habenula segmentation using myelin content', NeuroImage 2016 130:145-56, http://www.ncbi.nlm.nih.gov/pubmed/26826517
+Lawson RP et al. 'Defining the habenula in human neuroimaging studies', NeuroImage 2013 64:722-7, https://www.ncbi.nlm.nih.gov/pubmed/22986224 
