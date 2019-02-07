@@ -1,5 +1,5 @@
 # Habenula fMRI ROIs
-Generates subject-level habenula (Hb) region of interest (ROI) masks with optimized BOLD sensitivity for use in fMRI studies. Hb ROIs are generated at functional resolution (e.g. 2mm isotropic) based on an input Hb segmentation at anatomical resolution (e.g. 0.7mm isotropic). Optionally, output Hb ROIs can be warped to a desired template space (e.g. MNI).
+Generates subject-level habenula (Hb) region of interest (ROI) masks with optimized BOLD sensitivity for use in fMRI studies (Ely BA et al. in prep). Hb ROIs are generated at functional resolution (e.g. 2mm isotropic) based on an input Hb segmentation at anatomical resolution (e.g. 0.7mm isotropic). Optionally, output Hb ROIs can be warped to a desired template space (e.g. MNI).
 
 ---
 ## Requirements
