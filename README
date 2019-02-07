@@ -1,5 +1,5 @@
 # Habenula fMRI ROIs
-Generates subject-level habenula (Hb) region of interest (ROI) masks for use in fMRI studies. Hb ROIs are generated at functional resolution (e.g. 2mm isotropic) based on an input Hb segmentation at anatomical resolution (e.g. 0.7mm isotropic). Optionally, output Hb ROIs can be warped to a desired template space (e.g. MNI).
+Generates subject-level habenula (Hb) region of interest (ROI) masks with optimized BOLD sensitivity for use in fMRI studies. Hb ROIs are generated at functional resolution (e.g. 2mm isotropic) based on an input Hb segmentation at anatomical resolution (e.g. 0.7mm isotropic). Optionally, output Hb ROIs can be warped to a desired template space (e.g. MNI).
 
 ---
 ## Requirements
@@ -96,6 +96,6 @@ MNI_template_Hb_3T.nii.gz
 # References:
 
 Ely BA et al. 'Resting-state functional connectivity of the human habenula in healthy individuals: associations with subclinical depression', Human Brain Mapping 2016 37:2369-84, https://www.ncbi.nlm.nih.gov/pubmed/26991474 
-Ely BA et al. 'Human habenula functional connectivity with monoamine, sensory, and salience systems', in prep
+Ely BA et al. 'A detailed map of human habenula resting-state functional connectivity', in prep
 Kim JW et al. 'Human habenula segmentation using myelin content', NeuroImage 2016 130:145-56, http://www.ncbi.nlm.nih.gov/pubmed/26826517
 Lawson RP et al. 'Defining the habenula in human neuroimaging studies', NeuroImage 2013 64:722-7, https://www.ncbi.nlm.nih.gov/pubmed/22986224 
