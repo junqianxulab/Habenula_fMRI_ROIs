@@ -1,15 +1,29 @@
 #!/bin/bash
-# Created by Ely, updated 6/5/2017. Runs volume optimization on Hb ROIs. Use in conjunction an LSF command like:
-# bsub -J Hb_volopt[1-68] -P acc_sterne04a -q expressalloc -n 1 -W 00:15 -R rusage[mem=8000] -R span[hosts=1] -o /sc/orga/projects/sterne04a/hb_rFMRI_7T_3T_HCP/logs/ROI_gen_volopt/volopt.%I.out -e /sc/orga/projects/sterne04a/hb_rFMRI_7T_3T_HCP/logs/ROI_gen_volopt/volopt.%I.err -L /bin/bash sh /sc/orga/projects/sterne04a/hb_rFMRI_7T_3T_HCP/MNI_ROIs/scripts/par_MNI_volopt_Hb_3T.sh
+# Created by Ely, updated 6/5/2017. Generates subject-level Hb ROIs at functional resolution optimized to match the volume of the input probabilistic Hb segmentations (see Kim JW et al. NeuroImage 2016).
 
-home="/sc/orga/projects/sterne04a/hb_rFMRI_7T_3T_HCP"
-sublist="$home/sublists/sublist.txt"
+# Example command to run for a single subject:
+# sh Hb_volume_optimized_ROIs.sh <subject_ID> <segmented_Hb_volume_in_mm>
+
+# Example LSF command to run in parallel for 100 subjects:
+# bsub -J Hb_volopt[1-100] -P <account_name>  -q <queue> -n 1 -W 00:15 -R rusage[mem=8000] -R span[hosts=1] -o <logfile_basename>.%I.log -e <error_logfile_basename>.%I.err sh Hb_volume_optimized_ROIs.sh
+
+home="/sc/orga/projects/sterne04a/hb_rFMRI_7T_3T_HCP" # change to suit your environment
+sublist="$home/sublists/sublist.txt" # list of subject IDs, one per line
 direction="right left"
-indir="$home/MNI_ROIs/Hb_seg"
-outdir="$home/MNI_ROIs/Hb_volopt"
-i=$LSB_JOBINDEX
+indir="$home/MNI_ROIs/Hb_seg" # directory containing probabilistic Hb segmentations at anatomical resolution and a text file containing estimated Hb segmentation volume
+outdir="$home/MNI_ROIs/Hb_volopt"  # directory for output functional-resolution Hb ROIs
 cd $home
-sub=`head -n $LSB_JOBINDEX $sublist | tail -n 1`
+
+# determine if single-subject or parallel
+if [ -z $1 ] ; then
+        sub=`head -n $LSB_JOBINDEX $sublist | tail -n 1`
+	i=$LSB_JOBINDEX
+else
+        sub=$1
+	i=1
+fi
+
+# perform iterative downsampling with volume matching
 for dir in $direction ; do
 	invol="${sub}_${dir}_segHb_MNI_prob"
 	echo "invol=$invol"
@@ -17,7 +31,9 @@ for dir in $direction ; do
 	thresh="0.5"
 	trend=""
 	increment=".05"
-	target=`head -n $LSB_JOBINDEX $indir/final_Hb_volume_partial_${dir}.txt | tail -n 1`
+	# determine target volume
+	vollist="$indir/final_Hb_volume_partial_${dir}.txt" # text file containing estimated Hb segmentation volumes in mm (one value if running for single-subject, one per line if running in parallel)
+	target=`head -n $i $vollist | tail -n 1`
 	echo "target_volume=$target"
 	while [ $doit = "TRUE" ] ; do
 		thrname=$(echo "${thresh}*100" | bc)

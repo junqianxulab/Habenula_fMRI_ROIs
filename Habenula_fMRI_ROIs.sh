@@ -1,7 +1,7 @@
 #!/bin/bash
-# Generates Hb ROIs at functional resolution in native or template space from anatomical Hb segmentations in native space.
+# Generates shape optimized Hb ROIs at functional resolution in native or template space from anatomical Hb segmentations in native space.
 # Created by Benjamin A. Ely
-# Version date 24 January 2019
+# Version date 18 March 2019
 
 # parse inputs
 getopt1() {
@@ -139,8 +139,8 @@ fslmaths $odir/${sub}_left_Hb_region_full_prob \
 if [ $? -ne 0 ] ; then exit 50 ; fi
 echo "`date`: $sub bilateral probabilistic Hb region ROI created"
 
-# threshold and binarize to create recommended Hb fMRI ROI
-fslmaths $odir/${sub}_bilat_Hb_region_full_prob -thr 0.25 -bin $odir/${sub}_bilat_Hb_region_thr0.25_bin
+# threshold and binarize to create recommended shape optimized Hb fMRI ROI
+fslmaths $odir/${sub}_bilat_Hb_region_full_prob -thr 0.25 -bin $odir/${sub}_bilat_shape_optimized_Hb_ROI
 if [ $? -ne 0 ] ; then exit 51 ; fi
 echo "`date`: $sub bilateral Hb region ROI thresholded and binarized"
-echo "`date`: $sub Hb fMRI ROI creation complete"
+echo "`date`: $sub shape optimized Hb fMRI ROI creation complete"
