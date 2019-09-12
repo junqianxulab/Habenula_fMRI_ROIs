@@ -1,5 +1,5 @@
 # Habenula fMRI ROIs
-Generates subject-level habenula (Hb) regions of interest (ROIs) with high BOLD sensitivity for use in fMRI studies. Hb ROIs are generated at functional resolution (e.g. 2mm isotropic) based on an input Hb segmentation at anatomical resolution (e.g. 0.7mm isotropic). Optionally, output Hb ROIs can be warped to a desired template space (e.g. MNI). Note that the main Habenula_fMRI_ROIs.sh script is an updated version of the Hb_shape_optimized_ROIs_2mm.sh script (see Legacy Methods) used in (Ely BA et al. 2019, under review), modified to allow arbitrary input anatomical/functional resolutions and greater control over final ROI thresholding/size.
+Generates subject-level habenula (Hb) regions of interest (ROIs) with high BOLD sensitivity for use in fMRI studies. Hb ROIs are generated at functional resolution (e.g. 2mm isotropic) based on an input Hb segmentation at anatomical resolution (e.g. 0.7mm isotropic). Optionally, output Hb ROIs can be warped to a desired template space (e.g. MNI). Note that the main Habenula_fMRI_ROIs.sh script is an updated version of the Hb_shape_optimized_ROIs_2mm.sh script (see Legacy Methods) used in (Ely BA et al. 2019 NeuroImage), modified to allow arbitrary input anatomical/functional resolutions and greater control over final ROI thresholding/size.
 
 ---
 ## Requirements
@@ -11,7 +11,7 @@ Generates subject-level habenula (Hb) regions of interest (ROIs) with high BOLD 
 * Left Hb segmentation at anatomical resolution in native subject space
 * Right Hb segmentation at anatomical resolution in native subject space
 	* We recommend automated probabilistic Hb segmentation if T1w and T2w anatomical data are available (Kim JW et al. 2016 NeuroImage; https://github.com/junqianxulab/habenula_segmentation)
-	* Should also work for manually-defined binary Hb masks (e.g. Lawson RP et al. 2013 NeuroImage)
+	* Should also work for manually-defined binary Hb masks (e.g. Lawson RP et al. 2013 NeuroImage; https://github.com/junqianxulab/habenula_segmentation_lawson)
 * Example file at the target functional resolution and XYZ dimensions (i.e. NIFTI header parameters match desired output)
 * (Optional) FNIRT-compatible relative warpfield for transforming from template to native space 
 	* If using HCP pipelines, located in '${subject_directory}/MNINonLinear/xfms/standard2acpc_dc.nii.gz'
@@ -20,7 +20,7 @@ Note that input files should be in standard NIFTI1 format (.nii or .nii.gz). Int
 
 ---
 ## Outputs
-* Shape-optimized Hb ROI created by thresholding (25th percentile) and binarizing the probabilistic bilateral Hb region ROI. Recommended Hb ROI for use in fMRI studies (Ely BA et al. 2019, under review).
+* Shape-optimized Hb ROI created by thresholding (25th percentile) and binarizing the probabilistic bilateral Hb region ROI. Recommended Hb ROI for use in fMRI studies (Ely BA et al. 2019 NeuroImage).
 	* ${subject_ID}_bilat_shape_optimized_Hb_ROI.nii.gz
 * Probabilistic left, right, and bilateral Hb region ROIs at target functional resolution (and in template space if warpfield supplied).
 	* ${subject_ID}_left_Hb_region_full_prob.nii.gz
@@ -50,7 +50,7 @@ Habenula_fMRI_ROIs.sh
 
 ---
 # Legacy Methods
-Original six methods for creating Hb fMRI ROIs evaluated in (Ely BA et al. 2019, under review). Method #3 (Hb_shape_optimized_ROIs_2mm.sh) had the highest Hb BOLD sensitivity (see above). Other methods are provided for completeness only; not recommended. Note that these scripts use input Hb segmentations created in MNI template space rather than native subject space (also not recommended) and are configured to optionally run in parallel in a LSF-based cluster computing environment.
+Original six methods for creating Hb fMRI ROIs evaluated in (Ely BA et al. 2019 NeuroImage). Method #3 (Hb_shape_optimized_ROIs_2mm.sh) had the highest Hb BOLD sensitivity (see above). Other methods are provided for completeness only; not recommended. Note that these scripts use input Hb segmentations created in MNI template space rather than native subject space (also not recommended) and are configured to optionally run in parallel in a LSF-based cluster computing environment.
 
 ## 1: Unoptimized Hb ROIs
 Basic nearest-neighbor downsampling of binary Hb segmentation to functional resolution.
@@ -97,7 +97,7 @@ Hb_template_ROI_2mm_MNI.nii.gz
 ---
 # References:
 
-Ely BA et al. 'Resting-state functional connectivity of the human habenula in healthy individuals: associations with subclinical depression', Human Brain Mapping 2016 37:2369-84, https://www.ncbi.nlm.nih.gov/pubmed/26991474 
-Ely BA et al. 'Detailed mapping of human habenula resting-state functional connectivity', under review
-Kim JW et al. 'Human habenula segmentation using myelin content', NeuroImage 2016 130:145-56, http://www.ncbi.nlm.nih.gov/pubmed/26826517
-Lawson RP et al. 'Defining the habenula in human neuroimaging studies', NeuroImage 2013 64:722-7, https://www.ncbi.nlm.nih.gov/pubmed/22986224 
+[1] Ely BA et al., 'Resting-state functional connectivity of the human habenula in healthy individuals: associations with subclinical depression', 2016, Human Brain Mapping, 37:2369-84, https://www.ncbi.nlm.nih.gov/pubmed/26991474 
+[2] Ely BA et al., 'Detailed mapping of human habenula resting-state functional connectivity', 2019, NeuroImage, 200:621-34 https://www.ncbi.nlm.nih.gov/pubmed/31252057
+[3] Kim JW et al., 'Human habenula segmentation using myelin content', 2016, NeuroImage, 130:145-56, http://www.ncbi.nlm.nih.gov/pubmed/26826517
+[4] Lawson RP et al., 'Defining the habenula in human neuroimaging studies', 2013, NeuroImage, 64:722-7, https://www.ncbi.nlm.nih.gov/pubmed/22986224 
