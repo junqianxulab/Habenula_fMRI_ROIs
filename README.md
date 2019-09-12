@@ -98,6 +98,9 @@ Hb_template_ROI_2mm_MNI.nii.gz
 # References:
 
 [1] Ely BA et al., 'Resting-state functional connectivity of the human habenula in healthy individuals: associations with subclinical depression', 2016, Human Brain Mapping, 37:2369-84, https://www.ncbi.nlm.nih.gov/pubmed/26991474 
+
 [2] Ely BA et al., 'Detailed mapping of human habenula resting-state functional connectivity', 2019, NeuroImage, 200:621-34 https://www.ncbi.nlm.nih.gov/pubmed/31252057
+
 [3] Kim JW et al., 'Human habenula segmentation using myelin content', 2016, NeuroImage, 130:145-56, http://www.ncbi.nlm.nih.gov/pubmed/26826517
+
 [4] Lawson RP et al., 'Defining the habenula in human neuroimaging studies', 2013, NeuroImage, 64:722-7, https://www.ncbi.nlm.nih.gov/pubmed/22986224 
