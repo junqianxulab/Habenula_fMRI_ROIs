@@ -73,6 +73,17 @@ Habenula_fMRI_ROIs.sh \
 	--LRout
 ```
 
+___
+# Templates
+A few other potentially useful files:
+
+* 2mm T1w MNI template brain: NIFTI header matches HCP data so can be used as --func target
+	* MNI152_T1_2mm_brain.nii.gz
+
+* Thalamus ROIs: Bilateral ROIs located anterior to and lateral to the Hb in MNI space. ROIs are non-specific but approximately correspond to dorsomedial (anterior) and centromedian (lateral) thalamic nuclei. Can be used as "control" ROIs/to regress out nearby thalammic signals during analysis. Derived by averaging Volume Optimized Hb ROIs (see Legacy Methods) from 50 HCP subjects and shifting 6mm (3 voxels) anteriorly/laterally (Ely BA et al. 2016, Human Brain Mapping).
+	* Thalamus_control_ROI_anterior_to_Hb_from_Ely_HBM_2016.nii.gz
+	* Thalamus_control_ROI_lateral_to_Hb_from_Ely_HBM_2016.nii.gz
+	
 ---
 # Legacy Methods
 Original six methods for creating Hb fMRI ROIs evaluated in (Ely BA et al. 2019, under review). Main method described above is based on Legacy Method #3 (Hb_shape_optimized_ROIs_2mm.sh), which had the highest Hb BOLD sensitivity (see above). Other methods are provided for completeness only; not recommended. Note that these scripts use input Hb segmentations created in MNI template space rather than native subject space (also not recommended) and are configured to optionally run in parallel in a LSF-based cluster computing environment.
