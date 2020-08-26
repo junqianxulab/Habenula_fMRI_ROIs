@@ -86,7 +86,7 @@ A few other potentially useful files:
 	
 ---
 # Legacy Methods
-Original six methods for creating Hb fMRI ROIs evaluated in (Ely BA et al. 2019, under review). Main method described above is based on Legacy Method #3 (Hb_shape_optimized_ROIs_2mm.sh), which had the highest Hb BOLD sensitivity (see above). Other methods are provided for completeness only; not recommended. Note that these scripts use input Hb segmentations created in MNI template space rather than native subject space (also not recommended) and are configured to optionally run in parallel in a LSF-based cluster computing environment.
+Original six methods for creating Hb fMRI ROIs evaluated in (Ely BA et al. 2019 NeuroImage). Method #3 (Hb_shape_optimized_ROIs_2mm.sh) had the highest Hb BOLD sensitivity (see above). Other methods are provided for completeness only; not recommended. Note that these scripts use input Hb segmentations created in MNI template space rather than native subject space (also not recommended) and are configured to optionally run in parallel in a LSF-based cluster computing environment.
 
 ## 1: Unoptimized Hb ROIs
 Basic nearest-neighbor downsampling of binary Hb segmentation to functional resolution.
