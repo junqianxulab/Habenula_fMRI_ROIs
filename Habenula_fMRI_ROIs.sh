@@ -9,7 +9,6 @@ getopt1() {
 	shift 1
 	for fn in $@ ; do
 		if [ `echo $fn | grep -- "^${sopt}=" | wc -w` -gt 0 ] ; then
-#			echo $fn | sed "s/^${sopt}=//"
 			echo ${fn#*=}
 			return 0
 		fi
@@ -22,26 +21,28 @@ togopt1() {
 		if [ `echo $fn | grep -- "^${sopt}" | wc -w` -gt 0 ] ; then
 			echo TRUE
 			return 0
-		else
-			echo FALSE
-			return 0
 		fi
 	done
+	echo FALSE
+	return 0
 }
 
 # function to split bilateral Hb seg inputs
-splitRL() {
+splitLR() {
+	# expects $1=segB $2=workdir
 	xlen=$(fslval $1 dim1)
 	xhalf=$(echo "$xlen/2" | bc)
-	fslroi $1 tmp_half 0 $xhalf 0 -1 0 -1
-	fslmaths tmp_half -mul 0 tmp_zed
-	fslmaths tmp_zed  -add 1 tmp_one
-	fslmerge -x mask_L tmp_zed tmp_one
-	fslmerge -x mask_R tmp_one tmp_zed
-	fslmaths mask_L -mul $1 ${1%.nii*}_L
-	fslmaths mask_R -mul $1 ${1%.nii*}_R
-	imrm tmp_half tmp_zed tmp_one mask_L mask_R
+	fslroi $1 $2/tmp_half 0 $xhalf 0 -1 0 -1
+	fslmaths $2/tmp_half -mul 0 $2/tmp_zed
+	fslmaths $2/tmp_zed  -add 1 $2/tmp_one
+	fslmerge -x $2/mask_L $2/tmp_zed $2/tmp_one
+	fslmerge -x $2/mask_R $2/tmp_one $2/tmp_zed
+	fslmaths $2/mask_L -mul $1 $2/${1%.nii*}_L
+	fslmaths $2/mask_R -mul $1 $2/${1%.nii*}_R
+	imrm $2/tmp_half $2/tmp_zed $2/tmp_one $2/mask_L $2/mask_R
+	return 0
 }
+
 # parse inputs
 sub=`   getopt1 "--sub"    $@`
 segL=`  getopt1 "--segL"   $@`
@@ -51,53 +52,63 @@ func=`  getopt1 "--func"   $@`
 odir=`  getopt1 "--odir"   $@`
 warp=`  getopt1 "--warp"   $@`
 thresh=`getopt1 "--thresh" $@`
-quiet=` getopt1 "--quiet"  $@`
-###
-echo sub  $sub
-echo segL $segL
-echo segR $segR
-echo func $func
-echo odir $odir
+bin=`   togopt1 "--bin"    $@`
+quiet=` togopt1 "--quiet"  $@`
 
-echo "`date`: $sub Hb ROI creation started"
-# create working directory and dummy files
+# create working directory
 workdir="$odir/${sub}_Hb_ROI_workdir"
 mkdir -p $workdir
-#cd $workdir
-echo workdir $workdir ###
+
+# set up logging
+logfile="$workdir/${sub}_Hb_ROI_gen.log"
+if $quiet ; then
+	logdisp='/dev/null'
+else
+	logdisp='/dev/tty'
+fi
+
+echo "`date`: $sub Hb ROI creation started" | tee -a $logfile > $logdisp
+
+# if using segB, split into segL and segR
+if [ ! -z $segB ] && [ ! -z ${segL}${segR} ] ; then
+	echo "ERROR: either segB or segL+segR should be specified, not both" | tee -a $logfile > $logdisp
+	exit 40
+elif [ ! -z $segB ] && [ -z ${segL}${segR} ] ; then
+	splitLR $segB $workdir
+	if [ $? -ne 0 ] ; then exit 41 ; fi
+	segR=$workdir/${segB%.nii*}_R
+	segL=$workdir/${segB%.nii*}_L
+	echo "`date`: $sub bilateral Hb segmentation split into left/right" | tee -a $logfile > $logdisp
+fi
 
 # create regularly-spaced index at functional resolution in target space
 fslmaths -dt int $func -mul 0 -Tmean -add 1 -index $workdir/${sub}_full_index_func -odt int
-echo check 1 ###
+
 # upsample index to anatomical resolution and optionally warp to native space
 if [ -z $warp ] ; then
 	applywarp -i $workdir/${sub}_full_index_func \
 		  -r $segL \
 		  -o $workdir/${sub}_full_index_anat \
-	          --rel	--interp=nn # NB nearest neighbor interpolation to preserve exact index values
+	          --rel	\
+		  --interp=nn # NB nearest neighbor interpolation to preserve exact index values
 else
 	applywarp -i $workdir/${sub}_full_index_func \
 		  -r $segL \
 		  -o $workdir/${sub}_full_index_anat \
 		  -w $warp \
-	          --rel	--interp=nn # NB nearest neighbor interpolation to preserve exact index values
+	          --rel	\
+		  --interp=nn
 fi
 if [ $? -ne 0 ] ; then exit 42 ; fi
-echo "`date`: $sub anatomical and functional indices created"
+echo "`date`: $sub anatomical and functional indices created" | tee -a $logfile > $logdisp
 
-# add if statement to split segB
-#
-#
-#
-#
-
-for hemi in left right ; do
+for hemi in L R ; do
 		
 	# mask warped index with Hb
-	if [ "$hemi" = "left" ] ; then seg=$segL ; else	seg=$segR ; fi
+	if [ "$hemi" = "L" ] ; then seg=$segL ; else seg=$segR ; fi
 	fslmaths $workdir/${sub}_full_index_anat -mas $seg $workdir/${sub}_${hemi}_Hb_index_anat
 	if [ $? -ne 0 ] ; then exit 43 ; fi
-	echo "`date`: $sub index masked with $hemi Hb segmentation"
+	echo "`date`: $sub index masked with $hemi Hb segmentation" | tee -a $logfile > $logdisp
 
 	# determine the highest-indexed voxel in the masked region
 	bins=$(fslstats $workdir/${sub}_${hemi}_Hb_index_anat -R | awk '{print $2}') 
@@ -107,7 +118,7 @@ for hemi in left right ; do
 	# create histogram to determine how many voxels at each indexed value survived Hb ROI masking
 	fslstats $workdir/${sub}_${hemi}_Hb_index_anat -H $(( ${bins}+1 )) 0 $bins > $workdir/${sub}_histogram_${hemi}.txt
 	if [ $? -ne 0 ] ; then exit 45 ; fi
-	echo "`date`: $sub $hemi histogram created with $bins bins"
+	echo "`date`: $sub $hemi histogram created with $bins bins" | tee -a $logfile > $logdisp
 	
 	# find indices (one-based) and nonzero counts of all voxel intensities
 	cat -ns $workdir/${sub}_histogram_${hemi}.txt | grep .000000 | grep -v "\s0.000000" > $workdir/${sub}_tmp1_ShapeOpt_indices_${hemi}.txt
@@ -130,7 +141,7 @@ for hemi in left right ; do
 	done
 	# rm $workdir/${sub}_tmp1_ShapeOpt_indices_${hemi}.txt
 	# rm $workdir/${sub}_tmp2_ShapeOpt_indices_${hemi}.txt
-	echo "`date`: $sub $len $hemi nonzero indices identified"
+	echo "`date`: $sub $len $hemi nonzero indices identified" | tee -a $logfile > $logdisp
 
 	# create single-voxel masks for each voxel that survived Hb ROI masking
 	mkdir -p $workdir/${sub}_Hb_ShapeOpt_voxels_${hemi}
@@ -139,23 +150,23 @@ for hemi in left right ; do
 		(( x++ ))
 		# find number of anatomical voxels at current index
 		weight=$(head -n $x $workdir/${sub}_ShapeOpt_indices_${hemi}.txt | tail -n 1 | awk '{print $2}')
-		echo "`date`: $sub $hemi voxel $x actual occurances in masked ShapeOpt = $weight"
+		echo "`date`: $sub $hemi voxel $x actual occurances in masked region = $weight" | tee -a $logfile > $logdisp
 		# define upper and lower thresholds
 		lthr=$(echo "$j - 0.1" | bc)
 		uthr=$(echo "$j + 0.1" | bc)
 		# find maximum possible number of anatomical voxels at each index
 		max=$(fslstats $workdir/${sub}_full_index_anat -l $lthr -u $uthr -V | awk '{print $1}')
-		echo "`date`: $sub $hemi voxel $x possible occurances in masked ShapeOpt = $max"
+		echo "`date`: $sub $hemi voxel $x possible occurances in masked region = $max" | tee -a $logfile > $logdisp
 		# create mask with only current index values
 		fslmaths $workdir/${sub}_${hemi}_Hb_index_anat -thr $j -uthr $j $workdir/${sub}_Hb_ShapeOpt_voxels_${hemi}/mask_anat_$x
 		if [ $? -ne 0 ] ; then exit 46 ; fi
 		# find average Hb probability of anatomical voxels at current index based on probabilistic segmentation
 		prob=$(fslstats $seg -k $workdir/${sub}_Hb_ShapeOpt_voxels_${hemi}/mask_anat_$x -M)
-		echo "`date`: $sub $hemi voxel $x mean probability in segmentation = $prob"
+		echo "`date`: $sub $hemi voxel $x mean probability in segmentation = $prob" | tee -a $logfile > $logdisp
 		# weight functional-resolution voxel for current index by average probability and fraction of possible voxels at that index included in the segmented Hb
 		fslmaths $workdir/${sub}_full_index_func -thr $lthr -uthr $uthr -bin -mul $weight -div $max -mul $prob $workdir/${sub}_Hb_ShapeOpt_voxels_${hemi}/voxel_func_$x
 		if [ $? -ne 0 ] ; then exit 47 ; fi
-		echo "`date`: $sub $hemi voxel $x of $len complete"
+		echo "`date`: $sub $hemi voxel $x of $len complete" | tee -a $logfile > $logdisp
 	done
 
 	# create weighted Hb ShapeOpt ROI
@@ -163,7 +174,7 @@ for hemi in left right ; do
 		 $(echo $(for x in `ls $workdir/${sub}_Hb_ShapeOpt_voxels_${hemi}/voxel_func*.nii.gz` ; do echo -add $x ; done )) \
 		 $workdir/${sub}_${hemi}_Hb_ShapeOpt_func_unscaled
 	if [ $? -ne 0 ] ; then exit 48 ; fi
-	echo "`date`: $sub $hemi probabilistic Hb ShapeOpt ROI created"
+	echo "`date`: $sub $hemi probabilistic Hb ShapeOpt ROI created" | tee -a $logfile > $logdisp
 
 	# scale Hb ShapeOpt ROI weights to between 0 and 1
 	min=$(fslstats $workdir/${sub}_${hemi}_Hb_ShapeOpt_func_unscaled -l 0.000001 -R | awk '{print $1}')
@@ -172,20 +183,31 @@ for hemi in left right ; do
 		 -sub $min \
 		 -div $(echo ${max}-${min} | bc) \
 		 -thr 0 \
-		 $odir/${sub}_${hemi}_Hb_ROI_ShapeOpt_prob_full
+		 $odir/${sub}_Hb_ROI_ShapeOpt_full_${hemi}
 	if [ $? -ne 0 ] ; then exit 49 ; fi
-	echo "`date`: $sub $hemi Hb ShapeOpt ROI probability scaled from $min = 0 to $(echo ${max}-${min} | bc) = 1"
+	echo "`date`: $sub $hemi Hb ShapeOpt ROI probability scaled from $min = 0 to 0$(echo ${max}-${min} | bc) = 1" | tee -a $logfile > $logdisp
 done
 
 # combine left/right ROIs
-fslmaths $odir/${sub}_left_Hb_ROI_ShapeOpt_prob_full \
-	 -add $odir/${sub}_right_Hb_ROI_ShapeOpt_prob_full \
-	 $odir/${sub}_bilat_Hb_ROI_ShapeOpt_prob_full
+fslmaths      $odir/${sub}_Hb_ROI_ShapeOpt_full_L \
+	 -add $odir/${sub}_Hb_ROI_ShapeOpt_full_R \
+	      $odir/${sub}_Hb_ROI_ShapeOpt_full_B
 if [ $? -ne 0 ] ; then exit 50 ; fi
-echo "`date`: $sub bilateral probabilistic Hb ShapeOpt ROI created"
+echo "`date`: $sub bilateral probabilistic Hb ShapeOpt ROI created" | tee -a $logfile > $logdisp
 
-# threshold and binarize to create recommended shape optimized Hb fMRI ROI
-fslmaths $odir/${sub}_bilat_Hb_ROI_ShapeOpt_prob_full -thr 0.25 -bin $odir/${sub}_bilat_Hb_ROI_ShapeOpt_prob_thr0.25
-if [ $? -ne 0 ] ; then exit 51 ; fi
-echo "`date`: $sub bilateral Hb ROI thresholded"
-echo "`date`: $sub shape optimized Hb ROI creation complete"
+# threshold to remove voxels low Hb content (default = 0.25, recommended for HCP data, may want to adjust for other datasets)
+if [ -z $thresh ] ; then
+	thresh="0.25"
+fi
+for hemi in L R B ; do
+	# optionally binarize outputs
+	if $bin ; then
+		fslmaths $odir/${sub}_Hb_ROI_ShapeOpt_full_$hemi -thr $thresh -bin $odir/${sub}_Hb_ROI_ShapeOpt_thr${thresh}_bin_$hemi
+		logbin="and binarized"
+	else
+		fslmaths $odir/${sub}_Hb_ROI_ShapeOpt_full_$hemi -thr $thresh      $odir/${sub}_Hb_ROI_ShapeOpt_thr${thresh}_$hemi
+	fi
+	if [ $? -ne 0 ] ; then exit 51 ; fi
+	echo "`date`: $sub $hemi Hb ShapeOpt ROI thresholded at $thresh $logbin" | tee -a $logfile > $logdisp
+done
+echo "`date`: $sub shape optimized Hb ROI creation complete" | tee -a $logfile > $logdisp
