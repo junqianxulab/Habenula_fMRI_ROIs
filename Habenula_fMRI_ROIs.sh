@@ -103,9 +103,28 @@ if [ $? -ne 0 ] ; then exit 42 ; fi
 echo "`date`: $sub anatomical and functional indices created" | tee -a $logfile > $logdisp
 
 for hemi in L R ; do
-		
-	# mask warped index with Hb
+	
 	if [ "$hemi" = "L" ] ; then seg=$segL ; else seg=$segR ; fi
+	segname=$(basename $seg)
+	segname=${segname%.nii*}
+
+	# determine the maximum value in the segmentation and rescale to 1 if needed
+	segmax=$(fslstats $seg -R | awk '{print $2}')
+	if [[ $segmax > 1.000000 ]] ; then
+		fslmaths $seg -div $segmax $workdir/${segname}_max1
+		seg=$workdir/${segname}_max1
+		echo "`date`: WARNING: $sub $hemi Hb segmentation has max of $segmax > 1, rescaled to max of 1" | tee -a $logfile > $logdisp
+	fi
+
+	# threshold slightly to remove interpolation artifacts etc
+	segmin=$(fslstats $seg -R | awk '{print $1}')
+	if [[ $segmin < 0 ]] ; then
+		echo "`date`: WARNING: $sub $hemi Hb segmentation has min of $segmin < 0, values below 0.05 will be removed" | tee -a $logfile > $logdisp
+	fi
+	fslmaths $seg -thr 0.05 $workdir/${segname}_max1_min0.05
+	seg=$workdir/${segname}_max1_min0.05
+
+	# mask warped index with Hb
 	fslmaths $workdir/${sub}_full_index_anat -mas $seg $workdir/${sub}_${hemi}_Hb_index_anat
 	if [ $? -ne 0 ] ; then exit 43 ; fi
 	echo "`date`: $sub index masked with $hemi Hb segmentation" | tee -a $logfile > $logdisp
@@ -142,7 +161,7 @@ for hemi in L R ; do
 	# rm $workdir/${sub}_tmp1_ShapeOpt_indices_${hemi}.txt
 	# rm $workdir/${sub}_tmp2_ShapeOpt_indices_${hemi}.txt
 	echo "`date`: $sub $len $hemi nonzero indices identified" | tee -a $logfile > $logdisp
-
+	
 	# create single-voxel masks for each voxel that survived Hb ROI masking
 	mkdir -p $workdir/${sub}_Hb_ShapeOpt_voxels_${hemi}
 	x=0
