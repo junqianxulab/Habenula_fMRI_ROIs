@@ -1,5 +1,5 @@
 #!/bin/bash
-# Generates shape-optimized Hb ROIs at functional resolution in native or template space from anatomical Hb segmentations in native space.
+# Generates shape-optimized Hb ROIs at low resolution (functional, diffusion, etc)  in native or template space from anatomical Hb segmentations in native space.
 # Created by Benjamin A. Ely
 # Version date 25 Aug 2020
 
@@ -35,11 +35,11 @@ splitLR() {
 	fslroi $1 $2/tmp_half 0 $xhalf 0 -1 0 -1
 	fslmaths $2/tmp_half -mul 0 $2/tmp_zed
 	fslmaths $2/tmp_zed  -add 1 $2/tmp_one
-	fslmerge -x $2/mask_L $2/tmp_zed $2/tmp_one
-	fslmerge -x $2/mask_R $2/tmp_one $2/tmp_zed
-	fslmaths $2/mask_L -mul $1 $2/${1%.nii*}_L
-	fslmaths $2/mask_R -mul $1 $2/${1%.nii*}_R
-	imrm $2/tmp_half $2/tmp_zed $2/tmp_one $2/mask_L $2/mask_R
+	fslmerge -x $2/tmp_mask_L $2/tmp_zed $2/tmp_one
+	fslmerge -x $2/tmp_mask_R $2/tmp_one $2/tmp_zed
+	fslmaths $2/tmp_mask_L -mul $1 $2/${1%.nii*}_L
+	fslmaths $2/tmp_mask_R -mul $1 $2/${1%.nii*}_R
+	imrm $2/tmp_half $2/tmp_zed $2/tmp_one $2/tmp_mask_L $2/tmp_mask_R
 	return 0
 }
 
@@ -119,7 +119,7 @@ for hemi in L R ; do
 	# threshold slightly to remove interpolation artifacts etc
 	segmin=$(fslstats $seg -R | awk '{print $1}')
 	if [[ $segmin < 0 ]] ; then
-		echo "`date`: WARNING: $sub $hemi Hb segmentation has min of $segmin < 0, values below 0.05 will be removed" | tee -a $logfile > $logdisp
+		echo "`date`: WARNING: $sub $hemi Hb segmentation has min of $segmin < 0, values below 0.05 will be ignored" | tee -a $logfile > $logdisp
 	fi
 	fslmaths $seg -thr 0.05 $workdir/${segname}_max1_min0.05
 	seg=$workdir/${segname}_max1_min0.05
@@ -158,8 +158,8 @@ for hemi in L R ; do
 		j=$(( ${j}-1 ))
 		echo $j ${k%%.*} >> $workdir/${sub}_ShapeOpt_indices_${hemi}.txt
 	done
-	# rm $workdir/${sub}_tmp1_ShapeOpt_indices_${hemi}.txt
-	# rm $workdir/${sub}_tmp2_ShapeOpt_indices_${hemi}.txt
+	rm $workdir/${sub}_tmp1_ShapeOpt_indices_${hemi}.txt
+	rm $workdir/${sub}_tmp2_ShapeOpt_indices_${hemi}.txt
 	echo "`date`: $sub $len $hemi nonzero indices identified" | tee -a $logfile > $logdisp
 	
 	# create single-voxel masks for each voxel that survived Hb ROI masking
@@ -195,13 +195,13 @@ for hemi in L R ; do
 	if [ $? -ne 0 ] ; then exit 48 ; fi
 	echo "`date`: $sub $hemi probabilistic Hb ShapeOpt ROI created" | tee -a $logfile > $logdisp
 
-	# scale Hb ShapeOpt ROI weights to between 0 and 1
+	# scale Hb ShapeOpt ROI weights to between 0 and 1 and threshold slightly to remove noise
 	min=$(fslstats $workdir/${sub}_${hemi}_Hb_ShapeOpt_func_unscaled -l 0.000001 -R | awk '{print $1}')
 	max=$(fslstats $workdir/${sub}_${hemi}_Hb_ShapeOpt_func_unscaled -R | awk '{print $2}') 
 	fslmaths $workdir/${sub}_${hemi}_Hb_ShapeOpt_func_unscaled \
 		 -sub $min \
 		 -div $(echo ${max}-${min} | bc) \
-		 -thr 0 \
+		 -thr 0.01 \
 		 $odir/${sub}_Hb_ROI_ShapeOpt_full_${hemi}
 	if [ $? -ne 0 ] ; then exit 49 ; fi
 	echo "`date`: $sub $hemi Hb ShapeOpt ROI probability scaled from $min = 0 to 0$(echo ${max}-${min} | bc) = 1" | tee -a $logfile > $logdisp
