@@ -78,6 +78,11 @@ else
 	logdisp='/dev/tty'
 fi
 
+# set output threshold to exclude voxels low Hb content (default = 0.25, recommended for HCP data, may want to adjust for other datasets)
+if [ -z $thresh ] ; then
+	thresh="0.25"
+fi
+
 echo "`date`: subject $sub Hb ROI creation started" | tee -a $logfile > $logdisp
 echo "`date`: subject $sub Hb ROI working directory set to $workdir" | tee -a $logfile > $logdisp
 if ls $workdir/${sub}_full_index_func* > /dev/null 2>&1 ; then
@@ -229,10 +234,18 @@ fslmaths      $workdir/${sub}_Hb_ROI_ShapeOpt_full_L \
 if [ $? -ne 0 ] ; then exit 50 ; fi
 echo "`date`: subject $sub bilateral probabilistic Hb ShapeOpt ROI created" | tee -a $logfile > $logdisp
 
-# threshold to remove voxels low Hb content (default = 0.25, recommended for HCP data, may want to adjust for other datasets)
-if [ -z $thresh ] ; then
-	thresh="0.25"
+# check for overlap between left and right Hb ROIs; this is uncommon but may be a concern due to CSF medial to Hb
+fslmaths $workdir/${sub}_Hb_ROI_ShapeOpt_full_B -mas $workdir/${sub}_Hb_ROI_ShapeOpt_full_L -mas $workdir/${sub}_Hb_ROI_ShapeOpt_full_R $workdir/${sub}_Hb_ROI_ShapeOpt_full_overlap_LR
+overlapVox=$(fslstats $workdir/${sub}_Hb_ROI_ShapeOpt_full_overlap_LR -V | awk '{print $1}')
+if [ $overlapVox -ne 0 ] ; then
+	overlapMax=$(fslstats $workdir/${sub}_Hb_ROI_ShapeOpt_full_overlap_LR -R | awk '{print $2}')
+	echo "`date`: WARNING: subject $sub L and R Hb ShapeOpt ROIs overlap by $overlapVox voxels. Overlapping voxel weights will be summed in the bilateral ROI, which may increase CSF signal contamination if using the full weighted/unthresholded Hb ROI. Max combined weight of overlapping voxels = $overlapMax " | tee -a $logfile > $logdisp
+	if (( $(echo "$overlapMax >= $thresh" | bc) )) ; then
+		echo "ERROR: max combined weight of overlapping voxels (${overlapMax}) exceeds the ROI threshold (${thresh}). This is likely due to a segmentation issue and will affect the final ShapeOpt ROI. Review inputs and adjust thresholds if needed." | tee -a $logfile > $logdisp
+		exit 51
+	fi
 fi
+
 for hemi in L R B ; do
 	# optionally binarize outputs
 	if $bin ; then
@@ -241,7 +254,7 @@ for hemi in L R B ; do
 	else
 		fslmaths $workdir/${sub}_Hb_ROI_ShapeOpt_full_$hemi -thr $thresh      $workdir/${sub}_Hb_ROI_ShapeOpt_thr${thresh}_$hemi
 	fi
-	if [ $? -ne 0 ] ; then exit 51 ; fi
+	if [ $? -ne 0 ] ; then exit 52 ; fi
 done
 echo "`date`: subject $sub Hb ShapeOpt ROIs thresholded at $thresh $logbin" | tee -a $logfile > $logdisp
 
