@@ -21,11 +21,11 @@ togopt1() {
 	shift 1
 	for fn in $@ ; do
 		if [ `echo $fn | grep -- "^${sopt}" | wc -w` -gt 0 ] ; then
-			echo TRUE
+			echo true
 			return 0
 		fi
 	done
-	echo FALSE
+	echo false
 	return 0
 }
 
@@ -72,7 +72,7 @@ mkdir -p $workdir
 
 # set up logging
 logfile="$workdir/${sub}_Hb_ROI_gen.log"
-if $quiet ; then
+if [ "$quiet" = "true" ] ; then
 	logdisp='/dev/null'
 else
 	logdisp='/dev/tty'
@@ -248,7 +248,7 @@ fi
 
 for hemi in L R B ; do
 	# optionally binarize outputs
-	if $bin ; then
+	if [ "$bin" = "true" ] ; then
 		fslmaths $workdir/${sub}_Hb_ROI_ShapeOpt_full_$hemi -thr $thresh -bin $workdir/${sub}_Hb_ROI_ShapeOpt_thr${thresh}_bin_$hemi
 		logbin="and binarized"
 	else
@@ -261,7 +261,7 @@ echo "`date`: subject $sub Hb ShapeOpt ROIs thresholded at $thresh $logbin" | te
 # move outputs to output directory
 mkdir -p $odir
 mv $workdir/${sub}_Hb_ROI_ShapeOpt_*_B.nii* $odir/
-if $LRout ; then
+if [ "$LRout" = "true" ] ; then
 	mv $workdir/${sub}_Hb_ROI_ShapeOpt_*_L.nii* $odir/
 	mv $workdir/${sub}_Hb_ROI_ShapeOpt_*_R.nii* $odir/
 fi
